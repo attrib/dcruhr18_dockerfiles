@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>reveal.js</title>
+
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/white.css">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <section>
+            <h1>How I write Dockerfiles‽</h1>
+          </section>
+          <section>
+            <h2>About me</h2>
+            <p>Karl Fritsche</p>
+            <p>Senior Software Developer @ bio.logis GIM</p>
+            <p>Drupal Dev & DevOps</p>
+            <p>
+              Drupal: kfritsche<br>
+              Twitter: @attribdd<br>
+              Github: attrib
+            </p>
+          </section>
+          <section>
+            <ol>
+              <li>Prototyping</li>
+              <li>Testing</li>
+              <li>Usage</li>
+            </ol>
+            <aside class="notes">
+              <ul>
+                <li>Want to use Docker, you need to know how Dockerfiles are working</li>
+                <li>Tips & Tricks for the use cases</li>
+              </ul>
+            </aside>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Prerequisites</h2>
+            <p>Docker version >= 17.12.0</p>
+            <p>Mac users should reset to factory results</p>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Prototyping</h2>
+          </section>
+					<section>
+						<h3>What do we want?</h3>
+						<p>Run phpunit tests for each commit / merge request</p>
+					</section>
+					<section>
+						<h3>What do we need?</h3>
+						<ul>
+							<li>PHP7</li>
+							<li>PHP7 modules (mysql, redis, solr, ...)</li>
+							<li>Webserver,  MySQL, Solr, Redis, Selenium</li>
+							<li>Code</li>
+							<li>Run phpUnit tests</li>
+						</ul>
+					</section>
+					<section>
+						<h3>docker-compose</h3>
+						<pre><code data-trim data-noescap>
+              version: '3'
+              services:
+                web:
+                  build: .
+                  depends_on:
+                    - db
+                    - solr
+                    - redis
+                    - selenium
+                db:
+                  image: mariadb
+                solr:
+                  image: mariadb
+                redis:
+                  image: redis
+                selenium:
+                  image: selenium/standalone-chrome:3.8.1-bohrium
+                  volumes:
+                    - /dev/shm:/dev/shm
+            </code></pre>
+					</section>
+          <section>
+						<h3>FROM</h3>
+						<pre><code>
+							FROM scratch
+						</code></pre>
+						<p><a href="https://hub.docker.com/_/php/">https://hub.docker.com/<strong>_/php</strong>/</a></p>
+						<pre><code>
+							FROM php
+						</code></pre>
+						<pre><code>docker run -t php /bin/bash</code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Testing</h2>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Usage</h2>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+      // More info about config & dependencies:
+      // - https://github.com/hakimel/reveal.js#configuration
+      // - https://github.com/hakimel/reveal.js#dependencies
+      Reveal.initialize({
+        dependencies: [
+          { src: 'plugin/markdown/marked.js' },
+          { src: 'plugin/markdown/markdown.js' },
+          { src: 'plugin/notes/notes.js', async: true },
+          { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+      });
+    </script>
+  </body>
+</html>

@@ -31,8 +31,10 @@
           <section>
             <h2>About me</h2>
             <p>Karl Fritsche</p>
-            <p>Senior Software Developer @ bio.logis GIM</p>
-            <p>Drupal Dev & DevOps</p>
+            <p>
+							Senior Software Developer @ bio.logis GIM<br>
+            	Drupal Dev & DevOp
+						</p>
             <p>
               Drupal: kfritsche<br>
               Twitter: @attribdd<br>
@@ -42,7 +44,7 @@
           <section>
             <ol>
               <li>Prototyping</li>
-              <li>Testing</li>
+              <li>Finalizing</li>
               <li>Usage</li>
             </ol>
             <aside class="notes">
@@ -56,31 +58,37 @@
         <section>
           <section>
             <h2>Prerequisites</h2>
-            <p>Docker version >= 17.12.0</p>
+            <p>Docker version >= 17.12.0<br>Docker compose >= 1.18.0</p>
             <p>Mac users should reset to factory results</p>
           </section>
         </section>
+
+
+				<!-- Chapter one -->
         <section>
           <section>
             <h2>Prototyping</h2>
           </section>
+
 					<section>
 						<h3>What do we want?</h3>
 						<p>Run phpunit tests for each commit / merge request</p>
 					</section>
+
 					<section>
 						<h3>What do we need?</h3>
 						<ul>
+							<li>Webserver,  MySQL, Solr, Redis, Selenium</li>
 							<li>PHP7</li>
 							<li>PHP7 modules (mysql, redis, solr, ...)</li>
-							<li>Webserver,  MySQL, Solr, Redis, Selenium</li>
 							<li>Code</li>
 							<li>Run phpUnit tests</li>
 						</ul>
 					</section>
+
 					<section>
-						<h3>docker-compose</h3>
-						<pre><code data-trim data-noescap>
+						<h3>docker-compose.yml</h3>
+						<pre><code data-trim data-noescape>
               version: '3'
               services:
                 web:
@@ -93,7 +101,7 @@
                 db:
                   image: mariadb
                 solr:
-                  image: mariadb
+                  image: solr
                 redis:
                   image: redis
                 selenium:
@@ -102,23 +110,53 @@
                     - /dev/shm:/dev/shm
             </code></pre>
 					</section>
-          <section>
+
+					<section>
+						<h3>What do we need?</h3>
+						<ul>
+							<li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
+							<li>&#10007; PHP7</li>
+							<li>&#10007; PHP7 modules (mysql, redis, solr, ...)</li>
+							<li>&#10007; Code</li>
+							<li>&#10007; Run phpUnit tests</li>
+						</ul>
+					</section>
+
+					<section>
 						<h3>FROM</h3>
-						<pre><code>
+						<pre><code data-trim>
 							FROM scratch
 						</code></pre>
 						<p><a href="https://hub.docker.com/_/php/">https://hub.docker.com/<strong>_/php</strong>/</a></p>
-						<pre><code>
+						<pre><code data-trim>
 							FROM php
 						</code></pre>
-						<pre><code>docker run -t php /bin/bash</code></pre>
           </section>
+
+					<section>
+						<h3>ADD</h3>
+						<pre><code data-trim>
+							FROM php
+							ADD web
+						</code></pre>
+						<pre><code data-trim>
+							docker run -t php
+							docker cp web:web
+							docker commit c3f279d17e0a build_cache
+						</code></pre>
+					</section>
         </section>
+
+
+				<!-- Chapter two -->
         <section>
           <section>
-            <h2>Testing</h2>
+            <h2>Finalizing</h2>
           </section>
         </section>
+
+
+				<!-- Chapter three -->
         <section>
           <section>
             <h2>Usage</h2>

@@ -80,7 +80,6 @@
 						<ul>
 							<li>Webserver,  MySQL, Solr, Redis, Selenium</li>
 							<li>PHP7</li>
-							<li>PHP7 modules (mysql, redis, solr, ...)</li>
 							<li>Code</li>
 							<li>Run phpUnit tests</li>
 						</ul>
@@ -116,7 +115,6 @@
 						<ul>
 							<li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
 							<li>&#10007; PHP7</li>
-							<li>&#10007; PHP7 modules (mysql, redis, solr, ...)</li>
 							<li>&#10007; Code</li>
 							<li>&#10007; Run phpUnit tests</li>
 						</ul>
@@ -129,22 +127,123 @@
 						</code></pre>
 						<p><a href="https://hub.docker.com/_/php/">https://hub.docker.com/<strong>_/php</strong>/</a></p>
 						<pre><code data-trim>
-							FROM php
+							FROM php:7.1-apache
 						</code></pre>
           </section>
 
 					<section>
-						<h3>ADD</h3>
+						<h3>COPY</h3>
 						<pre><code data-trim>
-							FROM php
-							ADD web
+							FROM php:7.1-apache
+							COPY web/ /var/www/html/
 						</code></pre>
 						<pre><code data-trim>
 							docker run -t php
-							docker cp web:web
+							docker cp web/:/var/www/html/
 							docker commit c3f279d17e0a build_cache
 						</code></pre>
 					</section>
+
+          <section>
+            <h3>ADD</h3>
+            <pre><code data-trim>
+							FROM php:7.1-apache
+							ADD web/ /var/www/html/
+						</code></pre>
+            <p class="fragment fade-in">Similar to COPY, but src can be:</p>
+            <ul class="fragment fade-in">
+              <li>URL</li>
+              <li>archive which will be decompressed</li>
+            </ul>
+            <pre class="fragment fade-in"><code data-trim>
+							FROM php:7.1-apache
+							ADD web.tar.gz /var/www/html/
+						</code></pre>
+          </section>
+
+          <section>
+            <h3>RUN</h3>
+            <pre><code data-trim>
+							FROM php:7.1-apache
+							ADD web/ /var/www/html/
+              RUN cd /var/www/html/ && composer install
+            </code></pre>
+            <pre><code data-trim>
+              docker build .
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Debug</h3>
+            <pre><code data-trim data-noescape class="bash">
+Sending build context to Docker daemon  <span class="fragment highlight-current-blue">715.8kB</span>
+Step 1/3 : FROM php:7.1-apache
+7.1-apache: Pulling from library/php
+<span class="fragment highlight-current-blue">4176fe04cefe: Pull complete
+68183217183f: Pull complete
+ecf543bebf49: Pull complete
+4009289aa349: Pull complete
+77ffaad61dbd: Pull complete
+01a0b17969fe: Pull complete
+8df080430d36: Pull complete
+43c2454bf1cd: Pull complete
+99b26992a14b: Pull complete
+2f1509d07a58: Pull complete
+d30daf9bcabf: Pull complete
+4c3ae74ad819: Pull complete
+bdcddec5fc3b: Pull complete
+f83bf90b3773: Pull complete</span>
+Digest: sha256:5dcae65dc7548defe8f3fce80458086b8e68e6062f052b075314027e1a2172e4
+Status: Downloaded newer image for php:7.1-apache
+ ---> 9307bdae03eb
+Step 2/3 : ADD web/ /var/www/html/
+ ---> <span class="fragment highlight-current-blue">0f2b397a1342</span>
+Step 3/3 : RUN cd /var/www/html/ && composer install
+ ---> Running in <span class="fragment highlight-current-blue">25d3f1e82d73</span>
+/bin/sh: 1: composer: not found
+The command '/bin/sh -c cd /var/www/html/ && composer install' returned a non-zero code: 127
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Debug</h3>
+            <p>Adding too much files?</p>
+            <p class="fragment"><a href="#dockerignore">.dockerignore</a></p>
+            <p>composer not installed</p>
+            <p class="fragment"><a href="#composer">Add RUN to install composer</a></p>
+            <p>How to test commands</p>
+            <p class="fragment"><a href="#composer">docker run -it 0f2b397a1342 /bin/bash</a></p>
+          </section>
+
+          <section id="dockerignore">
+            <h3>.dockerignore</h3>
+            <pre><code data-trim>
+              .git
+              .idea
+              Dockerfile
+              vendor
+              web/core
+              web/modules/contrib
+              web/themes/contrib
+              web/profiles/contrib
+              web/libraries
+            </code></pre>
+          </section>
+
+          <section id="composer">
+            <h3>RUN composer install</h3>
+            <pre><code data-trim>
+							FROM php:7.1-apache
+              RUN curl -o installer.php https://getcomposer.org/installer && \
+                  php installer.php --filename=composer && \
+                  mv composer /usr/local/bin/composer
+							ADD web/ /var/www/html/
+              RUN composer install
+            </code></pre>
+            <p class="fragment">running as root</p>
+            <p class="fragment">USER</p>
+          </section>
+
         </section>
 
 

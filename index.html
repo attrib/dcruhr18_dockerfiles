@@ -92,6 +92,8 @@
               services:
                 web:
                   build: .
+                  ports:
+                    - "8090:80"
                   depends_on:
                     - db
                     - solr
@@ -164,9 +166,9 @@
           <section>
             <h3>RUN</h3>
             <pre><code data-trim>
-							FROM php:7.1-apache
-							ADD web/ /var/www/html/
-              RUN cd /var/www/html/ && composer install
+FROM php:7.1-apache
+ADD web/ /var/www/html/
+RUN cd /var/www/html/ && composer install
             </code></pre>
             <pre><code data-trim>
               docker build .
@@ -176,10 +178,10 @@
           <section>
             <h3>Debug</h3>
             <pre><code data-trim data-noescape class="bash">
-Sending build context to Docker daemon  <span class="fragment highlight-current-blue">715.8kB</span>
+Sending build context to Docker daemon  <mark>108.5MB</mark>
 Step 1/3 : FROM php:7.1-apache
 7.1-apache: Pulling from library/php
-<span class="fragment highlight-current-blue">4176fe04cefe: Pull complete
+<mark>4176fe04cefe: Pull complete
 68183217183f: Pull complete
 ecf543bebf49: Pull complete
 4009289aa349: Pull complete
@@ -192,14 +194,14 @@ ecf543bebf49: Pull complete
 d30daf9bcabf: Pull complete
 4c3ae74ad819: Pull complete
 bdcddec5fc3b: Pull complete
-f83bf90b3773: Pull complete</span>
+f83bf90b3773: Pull complete</mark>
 Digest: sha256:5dcae65dc7548defe8f3fce80458086b8e68e6062f052b075314027e1a2172e4
 Status: Downloaded newer image for php:7.1-apache
  ---> 9307bdae03eb
 Step 2/3 : ADD web/ /var/www/html/
- ---> <span class="fragment highlight-current-blue">0f2b397a1342</span>
+ ---> <mark>0f2b397a1342</mark>
 Step 3/3 : RUN cd /var/www/html/ && composer install
- ---> Running in <span class="fragment highlight-current-blue">25d3f1e82d73</span>
+ ---> Running in <mark>25d3f1e82d73</mark>
 /bin/sh: 1: composer: not found
 The command '/bin/sh -c cd /var/www/html/ && composer install' returned a non-zero code: 127
             </code></pre>
@@ -209,39 +211,154 @@ The command '/bin/sh -c cd /var/www/html/ && composer install' returned a non-ze
             <h3>Debug</h3>
             <p>Adding too much files?</p>
             <p class="fragment"><a href="#dockerignore">.dockerignore</a></p>
-            <p>composer not installed</p>
+            <p>composer not found?</p>
             <p class="fragment"><a href="#composer">Add RUN to install composer</a></p>
-            <p>How to test commands</p>
+            <p>How to test commands?</p>
             <p class="fragment"><a href="#composer">docker run -it 0f2b397a1342 /bin/bash</a></p>
           </section>
 
           <section id="dockerignore">
             <h3>.dockerignore</h3>
             <pre><code data-trim>
-              .git
-              .idea
-              Dockerfile
-              vendor
-              web/core
-              web/modules/contrib
-              web/themes/contrib
-              web/profiles/contrib
-              web/libraries
+.git
+.idea
+Dockerfile
+vendor
+web/core
+web/modules/contrib
+web/themes/contrib
+web/profiles/contrib
+web/libraries
             </code></pre>
           </section>
 
           <section id="composer">
             <h3>RUN composer install</h3>
             <pre><code data-trim>
-							FROM php:7.1-apache
-              RUN curl -o installer.php https://getcomposer.org/installer && \
-                  php installer.php --filename=composer && \
-                  mv composer /usr/local/bin/composer
-							ADD web/ /var/www/html/
-              RUN composer install
+FROM php:7.1-apache
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+ADD . /var/www/html/
+RUN composer install
             </code></pre>
-            <p class="fragment">running as root</p>
-            <p class="fragment">USER</p>
+          </section>
+
+          <section>
+            <h3>RUN composer install</h3>
+            <pre><code data-trim data-noescape class="bash">
+Sending build context to Docker daemon  <mark>548.9kB</mark>
+Step 1/4 : FROM php:7.1-apache
+ ---> 573e95b499ec
+Step 2/4 : RUN curl -o installer.php https://getcomposer.org/installer &&     php installer.php --filename=composer &&     mv composer /usr/local/bin/composer
+ <mark>---> Using cache</mark>
+ ---> 60d847ee4ff7
+Step 3/4 : ADD . /var/www/html/
+ <mark>---> 73f94c8a2e40</mark>
+Step 4/4 : RUN composer install
+ ---> Running in 79a3a1a5c706
+<mark>Do not run Composer as root/super user!</mark> See https://getcomposer.org/root for details
+Loading composer repositories with package information
+Installing dependencies (including require-dev) from lock file
+Package operations: 122 installs, 0 updates, 0 removals
+Failed to download cweagans/composer-patches from dist:
+<mark>The zip extension and unzip command are both missing</mark>, skipping.
+A php.ini file does not exist. You will have to create one.
+    Now trying to download from source
+  - Installing cweagans/composer-patches (1.6.4): Cloning 462e650616
+
+
+  [RuntimeException]
+    Failed to clone https://github.com/cweagans/composer-patches.git,
+<mark>git was not found,</mark> check that it is installed and in your PATH env.
+
+  sh: 1: git: not found
+
+
+install [--prefer-source] [--prefer-dist] [--dry-run] [--dev] [--no-dev] [--no-custom-installers] [--no-autoloader] [--no-scripts] [--no-progress] [--no-suggest] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--ignore-platform-reqs] [--] [<packages>]...
+
+The command '/bin/sh -c composer install' returned a non-zero code: 1
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Dependencies & USER</h3>
+            <pre><code data-trim data-noescape>
+FROM php:7.1-apache
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+<mark class="fragment" data-fragment-index="1">RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip</mark>
+<mark class="fragment" data-fragment-index="2">RUN useradd -ms /bin/bash php --uid 2000</mark>
+ADD . /var/www/html/
+<mark class="fragment" data-fragment-index="2">RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000</mark>
+RUN composer install
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Dependencies & USER</h3>
+            <pre><code data-trim data-noescape>
+Sending build context to Docker daemon  548.9kB
+Step 1/10 : FROM php:7.1-apache
+ ---> 573e95b499ec
+Step 2/10 : RUN curl -o installer.php https://getcomposer.org/installer &&     php installer.php --filename=composer &&     mv composer /usr/local/bin/composer
+ <mark>---> Using cache</mark>
+ ---> 60d847ee4ff7
+Step 3/8 : RUN apt-get update
+...
+ ---> a35798e3a4a7
+Step 4/10 : RUN apt-get install -yq git zlib1g-dev openssh-client
+ ---> Running in 61f8fbbb9609
+...
+Removing intermediate container 61f8fbbb9609
+ ---> c78d49f52f40
+Step 5/10 : RUN docker-php-ext-install -j$(nproc) zip
+ ---> Running in 3487255790b9
+...
+Removing intermediate container 3487255790b9
+ ---> 7d6cb10a1bca
+Step 6/10 : RUN useradd -ms /bin/bash php --uid 2000
+ ---> Running in 32b5f211175d
+Removing intermediate container 32b5f211175d
+ ---> 148fd2f58b67
+Step 7/10 : ADD . /var/www/html/
+ ---> ae0c6c73f219
+Step 8/10 : RUN chown 2000:2000 -R /var/www/html
+ ---> Running in de3ac5152a78
+Removing intermediate container de3ac5152a78
+ ---> 68ce4276a2a6
+Step 9/10 : USER 2000:2000
+ ---> Running in 96d758887394
+Removing intermediate container 96d758887394
+ ---> c36137c3c527
+Step 10/10 : RUN composer install
+ ---> Running in e85e46f7c383
+Loading composer repositories with package information
+Installing dependencies (including require-dev) from lock file
+Package operations: 122 installs, 0 updates, 0 removals
+  - Installing cweagans/composer-patches (1.6.4): Downloading (100%)
+...
+Generating autoload files
+Creating packages services cache file:
+/var/www/html/vendor/drupal/console/extend.console.uninstall.services.yml
+Removing intermediate container e85e46f7c383
+ ---> 2f4344511c82
+<mark>Successfully built 2f4344511c82</mark>
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>What do we need?</h3>
+            <ul>
+              <li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
+              <li>&#10003; PHP7</li>
+              <li>&#10003; Code</li>
+              <li>&#10007; Run phpUnit tests</li>
+            </ul>
           </section>
 
         </section>

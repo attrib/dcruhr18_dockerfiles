@@ -239,7 +239,7 @@ FROM php:7.1-apache
 RUN curl -o installer.php https://getcomposer.org/installer && \
     php installer.php --filename=composer && \
     mv composer /usr/local/bin/composer
-ADD . /var/www/html/
+COPY . /var/www/html/
 RUN composer install
             </code></pre>
           </section>
@@ -292,7 +292,7 @@ RUN curl -o installer.php https://getcomposer.org/installer && \
 RUN apt-get install -yq git zlib1g-dev openssh-client
 RUN docker-php-ext-install -j$(nproc) zip</mark>
 <mark class="fragment" data-fragment-index="2">RUN useradd -ms /bin/bash php --uid 2000</mark>
-ADD . /var/www/html/
+COPY . /var/www/html/
 <mark class="fragment" data-fragment-index="2">RUN chown 2000:2000 -R /var/www/html
 USER 2000:2000</mark>
 RUN composer install
@@ -352,12 +352,67 @@ Removing intermediate container e85e46f7c383
           </section>
 
           <section>
+            <h3>Missing Drupal requirements</h3>
+            <pre><code>docker-compose build; docker-compose up</code></pre>
+            <p>http://localhost:8090/web</p>
+            <p>Errors in apache log</p>
+            <pre><code>docker-compose logs web</code></pre>
+          </section>
+
+          <section>
+            <h3>Try & error</h3>
+            <pre><code data-trim data-noescape>
+FROM php:7.1-apache
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000
+<mark>RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+    libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
+RUN pecl install redis
+RUN pecl install igbinary
+RUN docker-php-ext-enable redis igbinary
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/
+RUN a2enmod rewrite</mark>
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install
+USER root
+            </code></pre>
+          </section>
+
+          <section>
             <h3>What do we need?</h3>
             <ul>
               <li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
               <li>&#10003; PHP7</li>
               <li>&#10003; Code</li>
               <li>&#10007; Run phpUnit tests</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>Run phpUnit tests</h3>
+            <pre><code data-trim>
+docker-compose $COMPOSE_ARGS run --rm web \
+    ./vendor/bin/phpunit --exclude-group ignore
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>What do we need?</h3>
+            <ul>
+              <li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
+              <li>&#10003; PHP7</li>
+              <li>&#10003; Code</li>
+              <li>&#10003; Run phpUnit tests</li>
             </ul>
           </section>
 
@@ -368,6 +423,17 @@ Removing intermediate container e85e46f7c383
         <section>
           <section>
             <h2>Finalizing</h2>
+          </section>
+
+          <section>
+            better way to add private key?
+            add private key
+            php.ini/apache config
+            composer.lock/composer.json separate to rest
+            multi stage builds
+            merge commands
+            chown on add/
+            composer cache?
           </section>
         </section>
 

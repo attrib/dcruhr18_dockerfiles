@@ -20,6 +20,18 @@
       link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
       document.getElementsByTagName( 'head' )[0].appendChild( link );
     </script>
+
+    <style type="text/css">
+      span.highlight-blue {
+        color: #1b91ff;
+      }
+      span.highlight-red {
+        color: #ff2c2d;
+      }
+      span.highlight-green {
+        color: #17ff2e;
+      }
+    </style>
   </head>
   <body>
     <div class="reveal">
@@ -426,14 +438,267 @@ docker-compose $COMPOSE_ARGS run --rm web \
           </section>
 
           <section>
-            better way to add private key?
-            add private key
-            php.ini/apache config
-            composer.lock/composer.json separate to rest
-            multi stage builds
-            merge commands
-            chown on add/
-            composer cache?
+            <h3>State after prototyping</h3>
+            <ul>
+              <li>Security issues (private key)</li>
+              <li>Long build time</li>
+              <li>Big image (841MB)</li>
+              <li>Missing test results / browser output</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>State after prototyping</h3>
+            <pre><code data-trim class="bash">
+FROM php:7.1-apache
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000
+RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+    libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
+RUN pecl install redis
+RUN pecl install igbinary
+RUN docker-php-ext-enable redis igbinary
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/
+RUN a2enmod rewrite
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install
+USER root
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Security issue</h3>
+            <p>Private keys for git inside image</p>
+            <p>Layers are immutable, can't be removed</p>
+            <p class="fragment"><span class="highlight-blue">Squash image</span></p>
+            <p class="fragment"><span class="highlight-blue">Multi-stage builds</span></p>
+          </section>
+
+          <section>
+            <h3>Squash image</h3>
+            <p>+ Reduces size (one layer)</p>
+            <p>+ Private files are really removed</p>
+            <pre class="fragment"><code>docker build --squash .</code></pre>
+            <div class="fragment">
+              <p>- Multiple Dockerfiles needed</p>
+              <p>- Always new image id</p>
+            </div>
+            <p class="fragment">- Increase size (not sharable)</p>
+          </section>
+
+          <section>
+            <h3>Multi-stage builds</h3>
+            <p>>= Docker 17.05</p>
+            <p>Build image, live image</p>
+            <div class="fragment">
+              <p>+ Separates concerns</p>
+              <p>+ Reusable build cache</p>
+              <p>+ One Dockerfile</p>
+            </div>
+            <p class="fragment">-/+ Image size</p>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape class="bash">
+FROM php:7.1-apache
+<span class="highlight-blue">RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000</span>
+RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+    libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
+RUN pecl install redis
+RUN pecl install igbinary
+RUN docker-php-ext-enable redis igbinary
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/
+RUN a2enmod rewrite
+<span class="highlight-green">COPY . /var/www/html/</span>
+<span class="highlight-blue">RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install</span>
+USER root
+            </code></pre>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape class="bash">
+FROM php:7.1<mark>-cli as builder</mark>
+<span class="highlight-blue">RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install</span>
+
+FROM php:7.1-apache
+RUN apt-get update
+RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+    libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
+RUN pecl install redis
+RUN pecl install igbinary
+RUN docker-php-ext-enable redis igbinary
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/
+RUN a2enmod rewrite
+<mark>COPY --from=builder /var/www/html/ /var/www/html/</mark>
+RUN chown www-data /var/www/html/web/sites/default/files
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Long build time</h3>
+            <p>Do you need that?</p>
+            <p>Better usage of build cache</p>
+            <p>Caching</p>
+            <p class="fragment"><a href="https://github.com/moby/moby/issues/14080">Open issue: build time volumes</a></p>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape class="bash">
+FROM php:7.1-cli as builder
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+<mark>RUN composer install</mark>
+
+FROM php:7.1-apache
+RUN apt-get update
+RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+              libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* <mark>sudo</mark>
+RUN pecl install redis
+RUN pecl install igbinary
+RUN docker-php-ext-enable redis igbinary
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/
+RUN a2enmod rewrite
+COPY --from=builder /var/www/html/ /var/www/html/
+RUN chown www-data /var/www/html/web/sites/default/files
+            </code></pre>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape class="bash">
+FROM php:7.1-cli as builder
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+    mv composer /usr/local/bin/composer
+RUN apt-get update
+RUN apt-get install -yq git zlib1g-dev openssh-client
+RUN docker-php-ext-install -j$(nproc) zip
+RUN useradd -ms /bin/bash php --uid 2000
+<span class="highlight-blue">COPY composer_cache/ /opt/composer_cache/
+ENV COMPOSER_CACHE_DIR /opt/composer_cache</span>
+<mark>COPY composer.* scripts /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install</mark>
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+            </code></pre>
+          </section>
+
+          <section>
+            <h3>Big image (841MB)</h3>
+            <p>Reduce amount of layers</p>
+            <p>Layers should change as less as possible</p>
+            <p>Do you need that?</p>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape class="bash">
+FROM php:7.1-apache
+RUN <span class="highlight-green">apt-get update</span>
+<span class="highlight-red">RUN</span> apt-get install -yq libfreetype6<span class="highlight-green">-dev</span> libjpeg62-turbo<span class="highlight-green">-dev</span> libmcrypt<span class="highlight-green">-dev</span> \
+              libpng<span class="highlight-green">-dev</span> libpq<span class="highlight-green">-dev</span> libicu<span class="highlight-green">-dev</span> libtidy<span class="highlight-green">-dev</span> mysql-client freetype*
+<span class="highlight-red">RUN</span> pecl install redis
+<span class="highlight-red">RUN</span> pecl install igbinary
+<span class="highlight-red">RUN</span> docker-php-ext-enable redis igbinary
+<span class="highlight-red">RUN</span> docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr
+<span class="highlight-red">RUN</span> docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip
+<span class="highlight-blue">COPY docker/docker.ini /etc/php/conf.d/
+COPY docker/000-default.conf /etc/apache2/sites-enabled/</span>
+<span class="highlight-red">RUN</span> a2enmod rewrite
+COPY --from=builder /var/www/html/ /var/www/html/
+RUN chown www-data /var/www/html/web/sites/default/files
+            </code></pre>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape>
+FROM php:7.1-apache
+RUN apt-get update <mark>&& \</mark>
+  apt-get install -yq <mark>--no-install-recommends</mark> libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+            libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* <mark>&& \</mark>
+  pecl install redis <mark>&& \</mark>
+  pecl install igbinary <mark>&& \</mark>
+  docker-php-ext-enable redis igbinary <mark>&& \</mark>
+  docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr --with-png-dir=/usr <mark>&& \</mark>
+  docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql mbstring tidy zip <mark>&& \</mark>
+  a2enmod rewrite <mark>&& \</mark>
+  <mark>apt-mark manual libjpeg62-turbo libpq5 libtidy-0.99-0 libicu52 && \
+  apt-get purge -y --auto-remove man libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev libpng-dev libicu-dev libtidy-dev libpq-dev && \
+  rm -rf /var/lib/apt/lists/* /var/lib/cache/*</mark>
+<span class="highlight-blue">COPY docker/ /</span>
+COPY --from=builder /var/www/html/ /var/www/html/
+RUN chown www-data /var/www/html/web/sites/default/files
+            </code></pre>
+          </section>
+
+          <section>
+            <pre><code data-trim data-noescape>
+FROM php:7.1-cli as builder
+RUN curl -o installer.php https://getcomposer.org/installer && \
+    php installer.php --filename=composer && \
+  mv composer /usr/local/bin/composer <mark>&& \</mark>
+  apt-get update <mark>&& \</mark>
+  apt-get install -yq <mark>--no-install-recommends</mark> git zlib1g-dev openssh-client <mark>&& \</mark>
+  docker-php-ext-install -j$(nproc) zip <mark>&& \</mark>
+  useradd -ms /bin/bash php --uid 2000
+COPY <mark>--chown 2000:2000</mark> composer.* scripts /var/www/html/
+USER 2000:2000
+RUN composer install</mark>
+COPY <mark>--chown 2000:2000</mark> . /var/www/html/
+            </code></pre>
+          </section>
+
+          <section>
+            missing
+              volumes
+              entrypoints
+              commands
+              expose
           </section>
         </section>
 

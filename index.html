@@ -551,7 +551,7 @@ USER 2000:2000
 <mark>WORKDIR /var/www/html/</mark>
 RUN composer install</span>
 
-FROM php:7.1-apache
+<mark>FROM php:7.1-apache</mark>
 RUN apt-get update
 RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
     libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo

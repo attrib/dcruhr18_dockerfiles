@@ -22,13 +22,13 @@
     </script>
 
     <style type="text/css">
-      span.highlight-blue {
+      span.highlight-blue, li.highlight-blue {
         color: #1b91ff;
       }
-      span.highlight-red {
+      span.highlight-red, li.highlight-red {
         color: #ff2c2d;
       }
-      span.highlight-green {
+      span.highlight-green, li.highlight-green {
         color: #17ff2e;
       }
     </style>
@@ -57,7 +57,7 @@
             <ol>
               <li>Prototyping</li>
               <li>Finalizing</li>
-              <li>Usage</li>
+              <li>Optional</li>
             </ol>
             <aside class="notes">
               <ul>
@@ -226,7 +226,7 @@ The command '/bin/sh -c cd /var/www/html/ && composer install' returned a non-ze
             <p>composer not found?</p>
             <p class="fragment"><a href="#composer">Add RUN to install composer</a></p>
             <p>How to test commands?</p>
-            <p class="fragment"><a href="#composer">docker run -it 0f2b397a1342 /bin/bash</a></p>
+            <p class="fragment"><a href="#composer">docker run --rm -it 0f2b397a1342 /bin/bash</a></p>
           </section>
 
           <section id="dockerignore">
@@ -413,7 +413,7 @@ USER root
           <section>
             <h3>Run phpUnit tests</h3>
             <pre><code data-trim>
-docker-compose $COMPOSE_ARGS run --rm web \
+docker-compose run --rm web \
     ./vendor/bin/phpunit --exclude-group ignore
             </code></pre>
           </section>
@@ -425,25 +425,6 @@ docker-compose $COMPOSE_ARGS run --rm web \
               <li>&#10003; PHP7</li>
               <li>&#10003; Code</li>
               <li>&#10003; Run phpUnit tests</li>
-            </ul>
-          </section>
-
-        </section>
-
-
-				<!-- Chapter two -->
-        <section>
-          <section>
-            <h2>Finalizing</h2>
-          </section>
-
-          <section>
-            <h3>State after prototyping</h3>
-            <ul>
-              <li>Security issues (private key)</li>
-              <li>Long build time</li>
-              <li>Big image (841MB)</li>
-              <li>Missing test results / browser output</li>
             </ul>
           </section>
 
@@ -474,6 +455,25 @@ USER 2000:2000
 RUN composer install
 USER root
             </code></pre>
+          </section>
+
+        </section>
+
+
+				<!-- Chapter two -->
+        <section>
+          <section>
+            <h2>Finalizing</h2>
+          </section>
+
+          <section>
+            <h3>State after prototyping</h3>
+            <ul>
+              <li>Security issues (private key)</li>
+              <li>Long build time</li>
+              <li>Big image (841MB)</li>
+              <li>Missing test results / browser output</li>
+            </ul>
           </section>
 
           <section>
@@ -549,6 +549,7 @@ RUN useradd -ms /bin/bash php --uid 2000
 COPY . /var/www/html/
 RUN chown 2000:2000 -R /var/www/html
 USER 2000:2000
+<mark>WORKDIR /var/www/html/</mark>
 RUN composer install</span>
 
 FROM php:7.1-apache
@@ -589,6 +590,7 @@ RUN useradd -ms /bin/bash php --uid 2000
 COPY . /var/www/html/
 RUN chown 2000:2000 -R /var/www/html
 USER 2000:2000
+WORKDIR /var/www/html/
 <mark>RUN composer install</mark>
 
 FROM php:7.1-apache
@@ -623,6 +625,7 @@ ENV COMPOSER_CACHE_DIR /opt/composer_cache</span>
 <mark>COPY composer.* scripts /var/www/html/
 RUN chown 2000:2000 -R /var/www/html
 USER 2000:2000
+WORKDIR /var/www/html/
 RUN composer install</mark>
 COPY . /var/www/html/
 RUN chown 2000:2000 -R /var/www/html
@@ -656,6 +659,7 @@ RUN chown www-data /var/www/html/web/sites/default/files
           </section>
 
           <section>
+            <h3>Image</h3>
             <pre><code data-trim data-noescape>
 FROM php:7.1-apache
 RUN apt-get update <mark>&& \</mark>
@@ -677,6 +681,7 @@ RUN chown www-data /var/www/html/web/sites/default/files
           </section>
 
           <section>
+            <h3>Builder image</h3>
             <pre><code data-trim data-noescape>
 FROM php:7.1-cli as builder
 RUN curl -o installer.php https://getcomposer.org/installer && \
@@ -688,26 +693,83 @@ RUN curl -o installer.php https://getcomposer.org/installer && \
   useradd -ms /bin/bash php --uid 2000
 COPY <mark>--chown 2000:2000</mark> composer.* scripts /var/www/html/
 USER 2000:2000
+WORKDIR /var/www/html/
 RUN composer install</mark>
 COPY <mark>--chown 2000:2000</mark> . /var/www/html/
             </code></pre>
           </section>
 
           <section>
-            missing
-              volumes
-              entrypoints
-              commands
-              expose
+            <h3>Finalizing</h3>
+            <ul>
+              <li>
+                Security issues
+                <ul class="fragment">
+                  <li class="highlight-green">Multi-stage builds</li>
+                </ul>
+              </li>
+              <li>
+                Long build time
+                <ul class="fragment">
+                  <li class="highlight-green">Multi-stage builds</li>
+                  <li class="highlight-green">Reduced build time as long as composer.json is not changing</li>
+                </ul>
+              </li>
+              <li>
+                Big image (841MB)
+                <ul class="fragment">
+                  <li class="highlight-green">Multi-stage builds</li>
+                  <li class="highlight-green">Merge commands</li>
+                  <li class="highlight-green">Cleanup</li>
+                  <li>Final image size: 595MB <span class="highlight-green">(-30%)</span></li>
+                </ul>
+              </li>
+            </ul>
           </section>
+
+          <section>
+            <h3>Missing test results / browser output</h3>
+            <p>docker-compose.yml</p>
+            <pre><code data-trim data-noescape>
+services:
+  web:
+    build: .
+    ports:
+      - "8090:80"
+    <mark>volumes:
+      - ./files/:/var/www/html/web/sites/default/files</mark>
+    depends_on:
+            </code></pre>
+            <pre><code data-trim>
+docker-compose run --rm web \
+    ./vendor/bin/phpunit --exclude-group ignore
+            </code></pre>
+          </section>
+
         </section>
 
 
 				<!-- Chapter three -->
         <section>
           <section>
-            <h2>Usage</h2>
+            <h2>Optional</h2>
+            <p>ENTRYPOINTS / CMD</p>
+            <p>EXPOSE</p>
+            <p>VOLUMES</p>
+            <p>ARG / ENV</p>
           </section>
+        </section>
+
+        <section>
+          <h2>Q&A</h2>
+          <small>
+            Presentation: <a href="https://attrib.github.io/dcruhr18_dockerfiles">https://attrib.github.io/dcruhr18_dockerfiles</a>
+            | <a href="https://github.com/attrib/dcruhr18_dockerfiles">https://github.com/attrib/dcruhr18_dockerfiles</a>
+            <br>
+            Example Drupal Project: <a href="https://github.com/attrib/drupal-test">https://github.com/attrib/drupal-test</a>
+            <br>
+            Best practices for writing Dockerfiles: <a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">https://docs.docker.com/develop/develop-images/dockerfile_best-practices/</a>
+          </small>
         </section>
       </div>
     </div>

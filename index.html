@@ -48,16 +48,15 @@
             	Drupal Dev & DevOp
 						</p>
             <p>
-              Drupal: kfritsche<br>
-              Twitter: @attribdd<br>
-              Github: attrib
+              Drupal: <a href="https://drupal.org/u/kfritsche">kfritsche</a><br>
+              Twitter: <a href="https://twitter.com/attribdd">@attribdd</a><br>
+              Github: <a href="https://github.com/attrib">attrib</a>
             </p>
           </section>
           <section>
             <ol>
               <li>Prototyping</li>
               <li>Finalizing</li>
-              <li>Optional</li>
             </ol>
             <aside class="notes">
               <ul>
@@ -71,7 +70,7 @@
           <section>
             <h2>Prerequisites</h2>
             <p>Docker version >= 17.12.0<br>Docker compose >= 1.18.0</p>
-            <p>Mac users should reset to factory results</p>
+            <p class="fragment">Mac users should reset to factory results</p>
           </section>
         </section>
 
@@ -90,8 +89,8 @@
 					<section>
 						<h3>What do we need?</h3>
 						<ul>
-							<li>Webserver,  MySQL, Solr, Redis, Selenium</li>
-							<li>PHP7</li>
+							<li>MySQL, Solr, Redis, Selenium</li>
+							<li>Webserver + PHP7</li>
 							<li>Code</li>
 							<li>Run phpUnit tests</li>
 						</ul>
@@ -127,8 +126,8 @@
 					<section>
 						<h3>What do we need?</h3>
 						<ul>
-							<li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
-							<li>&#10007; PHP7</li>
+							<li>&#10003; MySQL, Solr, Redis, Selenium</li>
+							<li>&#10007; Webserver + PHP7</li>
 							<li>&#10007; Code</li>
 							<li>&#10007; Run phpUnit tests</li>
 						</ul>
@@ -139,8 +138,8 @@
 						<pre><code data-trim>
 							FROM scratch
 						</code></pre>
-						<p><a href="https://hub.docker.com/_/php/">https://hub.docker.com/<strong>_/php</strong>/</a></p>
-						<pre><code data-trim>
+						<p class="fragment"><a href="https://hub.docker.com/_/php/">https://hub.docker.com/<strong>_/php</strong>/</a></p>
+						<pre class="fragment"><code data-trim>
 							FROM php:7.1-apache
 						</code></pre>
           </section>
@@ -150,11 +149,6 @@
 						<pre><code data-trim>
 							FROM php:7.1-apache
 							COPY web/ /var/www/html/
-						</code></pre>
-						<pre><code data-trim>
-							docker run -t php
-							docker cp web/:/var/www/html/
-							docker commit c3f279d17e0a build_cache
 						</code></pre>
 					</section>
 
@@ -182,9 +176,12 @@ FROM php:7.1-apache
 ADD web/ /var/www/html/
 RUN cd /var/www/html/ && composer install
             </code></pre>
-            <pre><code data-trim>
-              docker build .
-            </code></pre>
+            <div class="fragment">
+              <pre><code data-trim>
+                docker build .
+              </code></pre>
+              <small>bash</small>
+            </div>
           </section>
 
           <section>
@@ -225,7 +222,7 @@ The command '/bin/sh -c cd /var/www/html/ && composer install' returned a non-ze
             <p class="fragment"><a href="#dockerignore">.dockerignore</a></p>
             <p>composer not found?</p>
             <p class="fragment"><a href="#composer">Add RUN to install composer</a></p>
-            <p>How to test commands?</p>
+            <p>How to test RUN?</p>
             <p class="fragment"><a href="#composer">docker run --rm -it 0f2b397a1342 /bin/bash</a></p>
           </section>
 
@@ -295,7 +292,7 @@ The command '/bin/sh -c composer install' returned a non-zero code: 1
 
           <section>
             <h3>Dependencies & USER</h3>
-            <pre><code data-trim data-noescape>
+            <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-apache
 RUN curl -o installer.php https://getcomposer.org/installer && \
     php installer.php --filename=composer && \
@@ -364,7 +361,7 @@ Removing intermediate container e85e46f7c383
           </section>
 
           <section>
-            <h3>Missing Drupal requirements</h3>
+            <h3>Test</h3>
             <pre><code>docker-compose build; docker-compose up</code></pre>
             <p>http://localhost:8090/web</p>
             <p>Errors in apache log</p>
@@ -373,7 +370,7 @@ Removing intermediate container e85e46f7c383
 
           <section>
             <h3>Try & error</h3>
-            <pre><code data-trim data-noescape>
+            <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-apache
 RUN curl -o installer.php https://getcomposer.org/installer && \
     php installer.php --filename=composer && \
@@ -382,7 +379,12 @@ RUN apt-get update
 RUN apt-get install -yq git zlib1g-dev openssh-client
 RUN docker-php-ext-install -j$(nproc) zip
 RUN useradd -ms /bin/bash php --uid 2000
-<mark>RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install
+<mark>USER root
+RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
     libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
 RUN pecl install redis
 RUN pecl install igbinary
@@ -392,19 +394,14 @@ RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql m
 COPY docker/docker.ini /etc/php/conf.d/
 COPY docker/000-default.conf /etc/apache2/sites-enabled/
 RUN a2enmod rewrite</mark>
-COPY . /var/www/html/
-RUN chown 2000:2000 -R /var/www/html
-USER 2000:2000
-RUN composer install
-USER root
             </code></pre>
           </section>
 
           <section>
             <h3>What do we need?</h3>
             <ul>
-              <li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
-              <li>&#10003; PHP7</li>
+              <li>&#10003; MySQL, Solr, Redis, Selenium</li>
+              <li>&#10003; Webserver + PHP7</li>
               <li>&#10003; Code</li>
               <li>&#10007; Run phpUnit tests</li>
             </ul>
@@ -421,8 +418,8 @@ docker-compose run --rm web \
           <section>
             <h3>What do we need?</h3>
             <ul>
-              <li>&#10003; Webserver,  MySQL, Solr, Redis, Selenium</li>
-              <li>&#10003; PHP7</li>
+              <li>&#10003; MySQL, Solr, Redis, Selenium</li>
+              <li>&#10003; Webserver + PHP7</li>
               <li>&#10003; Code</li>
               <li>&#10003; Run phpUnit tests</li>
             </ul>
@@ -439,6 +436,11 @@ RUN apt-get update
 RUN apt-get install -yq git zlib1g-dev openssh-client
 RUN docker-php-ext-install -j$(nproc) zip
 RUN useradd -ms /bin/bash php --uid 2000
+COPY . /var/www/html/
+RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install
+USER root
 RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
     libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
 RUN pecl install redis
@@ -449,11 +451,6 @@ RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql m
 COPY docker/docker.ini /etc/php/conf.d/
 COPY docker/000-default.conf /etc/apache2/sites-enabled/
 RUN a2enmod rewrite
-COPY . /var/www/html/
-RUN chown 2000:2000 -R /var/www/html
-USER 2000:2000
-RUN composer install
-USER root
             </code></pre>
           </section>
 
@@ -469,7 +466,7 @@ USER root
           <section>
             <h3>State after prototyping</h3>
             <ul>
-              <li>Security issues (private key)</li>
+              <li>Security issues</li>
               <li>Long build time</li>
               <li>Big image (841MB)</li>
               <li>Missing test results / browser output</li>
@@ -493,7 +490,7 @@ USER root
               <p>- Multiple Dockerfiles needed</p>
               <p>- Always new image id</p>
             </div>
-            <p class="fragment">- Increase size (not sharable)</p>
+            <p class="fragment">- Increase real size (not sharable)</p>
           </section>
 
           <section>
@@ -509,6 +506,7 @@ USER root
           </section>
 
           <section>
+            <h3>Multi-stage builds</h3>
             <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-apache
 <span class="highlight-blue">RUN curl -o installer.php https://getcomposer.org/installer && \
@@ -518,6 +516,11 @@ RUN apt-get update
 RUN apt-get install -yq git zlib1g-dev openssh-client
 RUN docker-php-ext-install -j$(nproc) zip
 RUN useradd -ms /bin/bash php --uid 2000</span>
+<span class="highlight-green">COPY . /var/www/html/</span>
+<span class="highlight-blue">RUN chown 2000:2000 -R /var/www/html
+USER 2000:2000
+RUN composer install</span>
+USER root
 RUN apt-get install -yq libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev \
     libpng-dev libpq-dev libicu-dev libtidy-dev mysql-client freetype* sudo
 RUN pecl install redis
@@ -528,15 +531,11 @@ RUN docker-php-ext-install -j$(nproc) gd iconv json intl opcache pdo pdo_mysql m
 COPY docker/docker.ini /etc/php/conf.d/
 COPY docker/000-default.conf /etc/apache2/sites-enabled/
 RUN a2enmod rewrite
-<span class="highlight-green">COPY . /var/www/html/</span>
-<span class="highlight-blue">RUN chown 2000:2000 -R /var/www/html
-USER 2000:2000
-RUN composer install</span>
-USER root
             </code></pre>
           </section>
 
           <section>
+            <h3>Multi-stage builds</h3>
             <pre><code data-trim data-noescape class="bash">
 FROM php:7.1<mark>-cli as builder</mark>
 <span class="highlight-blue">RUN curl -o installer.php https://getcomposer.org/installer && \
@@ -578,6 +577,7 @@ RUN chown www-data /var/www/html/web/sites/default/files
           </section>
 
           <section>
+            <h3>Long build time</h3>
             <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-cli as builder
 RUN curl -o installer.php https://getcomposer.org/installer && \
@@ -611,6 +611,7 @@ RUN chown www-data /var/www/html/web/sites/default/files
           </section>
 
           <section>
+            <h3>Long build time</h3>
             <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-cli as builder
 RUN curl -o installer.php https://getcomposer.org/installer && \
@@ -640,6 +641,7 @@ RUN chown 2000:2000 -R /var/www/html
           </section>
 
           <section>
+            <h3>Big image</h3>
             <pre><code data-trim data-noescape class="bash">
 FROM php:7.1-apache
 RUN <span class="highlight-green">apt-get update</span>
